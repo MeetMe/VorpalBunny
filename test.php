@@ -2,7 +2,7 @@
 require_once("vorpalbunny.php");
 
 // Allow a command line override of localhost
-if ( strlen($argv) > 1 )
+if ( count($argv) > 1 )
 {
   $broker = $argv[1];
 } else {
