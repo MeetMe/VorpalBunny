@@ -14,7 +14,7 @@
  * @license   http://opensource.org/licenses/bsd-license.php BSD License
  * @version   0.1
  * @link      http://github.com/myYearbook/VorpalBunny
- * @since     2011-2-24
+ * @since     2011-02-24
  *
  * Usage:
  *
@@ -54,9 +54,6 @@ class VorpalBunny
       
       // Check to see if we already have a session key
       $this->sessionToken = apc_fetch( $this->cacheKey );
-      
-      // Set our ID counter to 0
-      apc_store( self::$apcIDKey, 0 );
     }
           
     // Create our Base URL
@@ -75,7 +72,7 @@ class VorpalBunny
     curl_setopt( $this->curl, CURLOPT_POST, True );
     curl_setopt( $this->curl, CURLOPT_RETURNTRANSFER, 1 );
     curl_setopt( $this->curl, CURLOPT_USERAGENT, 'VorpalBunny/0.1' );
-    curl_setopt( $this->curl, CURLOPT_HTTPHEADER, array( 'Content-type: application/javascript' ) );
+    curl_setopt( $this->curl, CURLOPT_HTTPHEADER, array( 'Content-type: application/json' ) );
   }
 
   /**
@@ -114,18 +111,18 @@ class VorpalBunny
   private function getNextId( )
   {
     // Get the ID out of APC if possible
-    if ( $self->canCacheSession === true )
+    if ( $this->canCacheSession === true )
     {
       // Assume this is set to 0 since we called for the session
-      $id = apc_inc( self::$apcIDKey, 1 );
+      $this->id = apc_inc( self::$apcIDKey, 1 );
     }
     else
     {
       // Increment our internal varaible
-      $self->id++;
+      $this->id++;
     }
 
-    return $id;
+    return $this->id;
   }
 
   /**
@@ -200,7 +197,7 @@ class VorpalBunny
   function getSessionURL( )
   {
     // If we don't have a valid session token, go get one
-    if ( ! $self->sessionToken )
+    if ( ! $this->sessionToken )
     {
       $this->getSession( );
     }

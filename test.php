@@ -1,4 +1,9 @@
 <?php
+/**
+ * Timed Test
+ *
+ * php test.php [host]
+ */
 require_once("vorpalbunny.php");
 
 // Allow a command line override of localhost
