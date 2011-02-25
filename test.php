@@ -25,7 +25,7 @@ else
 $vb = new VorpalBunny( $broker );
 
 // Publish to our rabbitmq broker
-if ( $vb->publish( "Hello World!", "", "test" ) )
+if ( $vb->publish( "", "test", "Hello World!" ) )
 {
   print "Message Published\n";
 }

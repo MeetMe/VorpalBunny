@@ -41,7 +41,7 @@ $start = microtime( true );
 for ( $x = 0; $x < $quantity; $x++ )
 {
   // Publish to our rabbitmq broker
-  if ( ! $vb->publish( "Hello World #" . $x, "", "test" ) )
+  if ( ! $vb->publish( "", "test", "Hello World #" . $x ) )
   {
     print "Error publishing, exiting.\n";
     break;

@@ -219,8 +219,8 @@ class VorpalBunny
    *
    * For more information on the parameters, see http://www.rabbitmq.com/amqp-0-9-1-quickref.html#basic.deliver
    *
-   * @param string $message to be published, should aready be escaped/encoded
    * @param string $exchange to publish the message to, can be empty
+   * @param string $message to be published, should aready be escaped/encoded
    * @param string $routing_key to publish the message to
    * @param string $mimetype of message content content
    * @param int $delivery_mode for message: 1 non-persist message, 2 persist message
@@ -230,9 +230,9 @@ class VorpalBunny
    * @return bool Success/Failure
    * @throws Exception
    */
-  function publish( $message,
-                    $exchange,
+  function publish( $exchange,
                     $routing_key,
+                    $message,
                     $mimetype = "text/plain",
                     $delivery_mode = 1,
                     $mandatory = false,
