@@ -18,7 +18,7 @@
  * Usage:
  *
  *  $vb = new VorpalBunny('localhost');
- *  $vb->publish($message, $mimeType, $deliveryType);
+ *  $vb->publish( $exchange, $routing_key, $message, $mimeType, $deliveryType);
  */
 class VorpalBunny
 {
@@ -202,7 +202,7 @@ class VorpalBunny
    *
    * @return string Session URL
    */
-  function getSessionURL( )
+  private function getSessionURL( )
   {
     // If we don't have a valid session token, go get one
     if ( ! $this->sessionToken )
