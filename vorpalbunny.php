@@ -1,6 +1,6 @@
 <?php
 /**
- * VorpalBunny is a publishing client for RabbitMQ's JSON-RPC Channel Plugin
+ * Vorpal Bunny is a publishing client for RabbitMQ's JSON-RPC Channel Plugin
  *
  * The goal is to be a light-weight tool for higher throughput with smaller
  * protocol overhead for calling Basic.Publish from PHP applications.
@@ -38,6 +38,7 @@ class VorpalBunny
    * @param string $user Username to pass to RabbitMQ when starting a session
    * @param string $pass Password to send to RabbitMQ when starting a session
    * @param string $vhost RabbitMQ VHost to use
+   * @param int $timeout Timeout to set on the RabbitMQ JSONRPC Channel side
    */
   function __construct( $host, $port = 55672, $user = 'guest', $pass = 'guest', $vhost = '/', $timeout = 30 )
   {
@@ -76,7 +77,7 @@ class VorpalBunny
    * Construct the JSON data payload for the POST
    *
    * @param string $method The RPC call to make, one of open, call, cast, poll
-   * @param 
+   * @param array $params Array of parameters to append to the payload
    */
   private function getPayload( $method, $params = array( ) )
   {
