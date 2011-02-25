@@ -72,10 +72,15 @@ class VorpalBunny
     $this->curl = curl_init( );
 
     // Set our CURL options
-    curl_setopt( $this->curl, CURLOPT_POST, True );
-    curl_setopt( $this->curl, CURLOPT_RETURNTRANSFER, 1 );
+    curl_setopt( $this->curl, CURLOPT_POST, true );
+    curl_setopt( $this->curl, CURLOPT_RETURNTRANSFER, true );
+    curl_setopt( $this->curl, CURLOPT_FORBID_REUSE, false );
+    curl_setopt( $this->curl, CURLOPT_FRESH_CONNECT, false );
+    curl_setopt( $this->curl, CURLOPT_TIMEOUT, 1 );
     curl_setopt( $this->curl, CURLOPT_USERAGENT, 'VorpalBunny/0.1' );
-    curl_setopt( $this->curl, CURLOPT_HTTPHEADER, array( 'Content-type: application/json' ) );
+    curl_setopt( $this->curl, CURLOPT_HTTPHEADER, array( 'Content-type: application/json', 
+                                                         'Connection: keep-alive',
+                                                         'Keep-Alive: 300' ) );
   }
 
   /**
