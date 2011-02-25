@@ -246,9 +246,21 @@ class VorpalBunny
       throw new Exception( "You must pass either an exchange or routing key to publish to." );
     }
 
-    // Set our properties array: content_encoding, headers, delivery_mode, priority, correlation_id, reply_to,
-    //                           expiration, message_id, timestamp, type, user_id, app_id, cluster_id
-    $properties = array ( $mimetype, null, $delivery_mode, null, null, null, null, null, null, null, null, null, null, null );
+    // Set our properties array
+    $properties = array ( $mimetype,       // Content-type
+                          null,            // Content-encoding
+                          null,            // Headers
+                          $delivery_mode,  // Delivery Mode
+                          null,            // Priority
+                          null,            // Correlation ID
+                          null,            // Reply To
+                          null,            // Expiration
+                          null,            // Message ID
+                          null,            // Timestamp
+                          null,            // Type
+                          null,            // User ID
+                          null,            // App ID 
+                          null );          // Cluster ID
 
     // Create our parameter array
     // Second parameter array is: ticket, exchange, routing_key, mandatory, immediate
@@ -297,7 +309,7 @@ class VorpalBunny
 
     // Make sure we have a body
     // Expected response example: {"version":"1.1","id":2,"result":[]}
-    if ( ! isset($response->result) )
+    if ( ! isset( $response->result ) )
     {
       throw Exception( "Missing Required 'response' attribute in JSON response" );
     }
