@@ -2,23 +2,32 @@
 /**
  * Timed Test
  *
- * php timetest.php [host [qty]]
+ * Usage:
+ *   php timetest.php [host [qty]]
+ *
+ * @package VorpalBunny
+ * @author Gavin M. Roy <gmr@myyearbook.com>
  */
-require_once("vorpalbunny.php");
+require_once( "vorpalbunny.php" );
 
 // Allow a command line override of localhost
-if ( count($argv) >= 2 )
+if ( count( $argv ) > 1 )
 {
   $broker = $argv[1];
-} else {
+}
+else
+{
   $broker = 'localhost';
 }
 
+
 // Allow a command line override the quantity
-if ( count($argv) >= 3 )
+if ( count( $argv ) >= 3 )
 {
   $quantity = $argv[2];
-} else {
+}
+else
+{
   $quantity = 1000;
 }
 
@@ -39,4 +48,4 @@ for ( $x = 0; $x < $quantity; $x++ )
   }
 }
 
-print number_format($quantity, 0) . " messages sent in " . number_format( microtime( true ) - $start, 2 ) . " seconds\n";
+print number_format( $quantity, 0 ) . " messages sent in " . number_format( microtime( true ) - $start, 2 ) . " seconds\n";

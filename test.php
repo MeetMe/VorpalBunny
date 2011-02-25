@@ -2,15 +2,22 @@
 /**
  * Timed Test
  *
- * php test.php [host]
+ * Usage:
+ *   php test.php [host]
+ *
+ * @package VorpalBunny
+ * @author Gavin M. Roy <gmr@myyearbook.com>
  */
-require_once("vorpalbunny.php");
+
+require_once( "vorpalbunny.php" );
 
 // Allow a command line override of localhost
-if ( count($argv) > 1 )
+if ( count( $argv ) > 1 )
 {
   $broker = $argv[1];
-} else {
+}
+else
+{
   $broker = 'localhost';
 }
 
