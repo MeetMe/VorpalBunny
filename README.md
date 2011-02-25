@@ -33,21 +33,19 @@ Class Documentation
 VorpalBunny
 
   Constructor __construct (line 43)
-  Initialize the VorpalBunny Class
+  # Initialize the VorpalBunny Class
 
-    __construct (string $host, [int $port = 55672], [string $user = 'guest'], [string $pass = 'guest'], [string $vhost = '/'], [int $timeout = 30])
-    - *string* _$host_: RabbitMQ server to use
-    - *int* $port: RabbitMQ Server HTTP port to use
-    - *string* $user: Username to pass to RabbitMQ when starting a session
-    - *string* $pass: Password to send to RabbitMQ when starting a session
-    - *string* $vhost: RabbitMQ VHost to use
-    - *int* $timeout: Timeout to set on the RabbitMQ JSONRPC Channel side
+  __construct (string $host, [int $port = 55672], [string $user = 'guest'], [string $pass = 'guest'], [string $vhost = '/'], [int $timeout = 30])
+  - *string* _$host_: RabbitMQ server to use
+  - *int* $port: RabbitMQ Server HTTP port to use
+  - *string* $user: Username to pass to RabbitMQ when starting a session
+  - *string* $pass: Password to send to RabbitMQ when starting a session
+  - *string* $vhost: RabbitMQ VHost to use
+  - *int* $timeout: Timeout to set on the RabbitMQ JSONRPC Channel side
 
-
-   publish (line 224)
-   Send a message to RabbitMQ using Basic.Deliver over RPC
-
-   For more information on the parameters, see http://www.rabbitmq.com/amqp-0-9-1-quickref.html#basic.deliver
+  publish (line 224)
+   # Send a message to RabbitMQ using Basic.Deliver over RPC
+   #  For more information on the parameters, see http://www.rabbitmq.com/amqp-0-9-1-quickref.html#basic.deliver
 
      return: Success/Failure
      throws: Exception
