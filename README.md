@@ -1,10 +1,11 @@
 Vorpal Bunny
 ===========
 
-Vorpal Bunny is a publishing client for RabbitMQ's JSON-RPC Channel Plugin
+Vorpal Bunny is an experimental rabbitmq-jsonrpc-channel PHP driver designed 
+to allow expedited single call HTTP delivery for Basic.Deliver calls to RabbitMQ.
 
-The goal is to be a light-weight tool for higher throughput with smaller
-protocol overhead for calling Basic.Publish from PHP applications.
+The goal is to be a light-weight tool for higher throughput with smaller protocol 
+overhead for single-call of Basic.Push per application execution. 
 
 Vorpal Bunny uses PHP with CURL and APC to reduce the traffic footprint for
 clients who do nothing but publishing. The workflow is to allow the client
@@ -12,7 +13,19 @@ to grab a session off of the RabbitMQ JSON-RPC Channel plugin web server
 and reuse that session until it is no longer valid. This is accomplished by
 using APC to cache the value of the sessionToken for the given server.
 
-Your exchange and routing key *MUST* be setup prior to use.
+he design tries to employ PHP's APC cache if available to keep one session with 
+the RPC server active per Apache server on the RabbitMQ server. Application 
+flow is as follows:
+
+  1. Construct object, determining of APC cache is available
+  2. On first call of publish, establish a session with the rabbitmq-jsonrpc-plugin, 
+     then send the message
+  3. On subsequent calls, call publish will send without trying to establish a 
+     session and then look for an error indicating the session has timed out or is 
+     no longer available. If this is the case, re-establish the session and retry 
+     the delivery.
+  
+Your exchange, routing key and queues *MUST* be setup prior to use.
 
 Requirements
 ------------
