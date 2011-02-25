@@ -14,7 +14,7 @@
  * @license   http://opensource.org/licenses/bsd-license.php BSD License
  * @version   0.1
  * @link      http://github.com/myYearbook/VorpalBunny
- * @since     2011-02-24
+ * @since     2011-2-24
  *
  * Usage:
  *
@@ -23,9 +23,10 @@
  */
 class VorpalBunny
 {
-  protected static $apcPrefix = "VorpalBunny:";    
+  protected static $apcPrefix = 'VorpalBunny:';
+  protected static $apcIDKey = 'VorpalBunny:id';    
   protected static $jsonRPCVersion = 1.1;
-  protected static $validMethods = array( "call", "cast", "open", "poll" );
+  protected static $validMethods = array( 'call', 'cast', 'open', 'poll' );
 
   private $id = 0;
   private $sessionToken = null;
@@ -53,6 +54,9 @@ class VorpalBunny
       
       // Check to see if we already have a session key
       $this->sessionToken = apc_fetch( $this->cacheKey );
+      
+      // Set our ID counter to 0
+      apc_store( self::$apcIDKey, 0 );
     }
           
     // Create our Base URL
@@ -62,6 +66,7 @@ class VorpalBunny
     $this->user = $user;
     $this->pass = $pass;
     $this->vhost = $vhost;
+    $this->timeout = $timeout;
     
     // Create our CURL instance
     $this->curl = curl_init( );
@@ -69,7 +74,7 @@ class VorpalBunny
     // Set our CURL options
     curl_setopt( $this->curl, CURLOPT_POST, True );
     curl_setopt( $this->curl, CURLOPT_RETURNTRANSFER, 1 );
-    curl_setopt( $this->curl, CURLOPT_USERAGENT, 'VorpalBunny/0.1');
+    curl_setopt( $this->curl, CURLOPT_USERAGENT, 'VorpalBunny/0.1' );
     curl_setopt( $this->curl, CURLOPT_HTTPHEADER, array( 'Content-type: application/javascript' ) );
   }
 
@@ -78,6 +83,8 @@ class VorpalBunny
    *
    * @param string $method The RPC call to make, one of open, call, cast, poll
    * @param array $params Array of parameters to append to the payload
+   * @return string JSON encoded array
+   * @throws Exception
    */
   private function getPayload( $method, $params = array( ) )
   {
@@ -92,11 +99,11 @@ class VorpalBunny
       $output['params'] = $params;
       
       // JSON Encode and return the data
-      return json_encode($output);
+      return json_encode( $output );
     } 
     
     // Better to be strict since invalid data can cause RabbitMQ to kill off the connection with no response
-    throw new Exception("Invalid RPC method passed: " . $method);
+    throw new Exception( "Invalid RPC method passed: " . $method );
   }
 
   /**
@@ -106,16 +113,31 @@ class VorpalBunny
    */
   private function getNextId( )
   {
-    return $this->id++;
+    // Get the ID out of APC if possible
+    if ( $self->canCacheSession === true )
+    {
+      // Assume this is set to 0 since we called for the session
+      $id = apc_inc( self::$apcIDKey, 1 );
+    }
+    else
+    {
+      // Increment our internal varaible
+      $self->id++;
+    }
+
+    return $id;
   }
 
   /**
    * Retrieves a Session token from the RabbitMQ JSON-RPC Channel Plugin
+   * 
+   * @return void
+   * @throws Exception
    */
   private function getSession( )
   {
     // Defind our parameters array
-    $parameters = array( $this->user, $this->pass, $this->timeout, $this->virtualHost );
+    $parameters = array( $this->user, $this->pass, $this->timeout, $this->vhost );
     
     // Set our post data
     curl_setopt( $this->curl, CURLOPT_POSTFIELDS, $this->getPayload( 'open', $parameters ) );
@@ -127,7 +149,7 @@ class VorpalBunny
     $response = curl_exec( $this->curl );
     
     // Make sure the call succeeded
-    if ( !$response )
+    if ( ! $response )
     {
       throw new Exception( "Could not connect to the RabbitMQ HTTP Server" );
     }
@@ -152,18 +174,21 @@ class VorpalBunny
     
     // Make sure we have a body
     // Expected response example: {"version":"1.1","id":1,"result":{"service":"F01F0D5ADDF995CAA9B1DCD38AB8E239"}}
-    if ( !isset($response->result) )
+    if ( ! isset( $response->result ) )
     {
       throw Exception( "Missing Required 'response' attribute in JSON response" );
     }
     
     // Assign our session token
     $this->sessionToken = $response->result->service;
-    
-    // Cache it if we can
+  
     if ( $this->canCacheSession === true )
     {
+      // Store the value of the token
       apc_store( $this->cacheKey, $this->sessionToken );  
+
+      // Set our ID counter to 0
+      apc_store( self::$apcIDKey, 0 );
     }
   }
   
@@ -175,7 +200,7 @@ class VorpalBunny
   function getSessionURL( )
   {
     // If we don't have a valid session token, go get one
-    if ( !$self->sessionToken )
+    if ( ! $self->sessionToken )
     {
       $this->getSession( );
     }
@@ -190,24 +215,33 @@ class VorpalBunny
    * For more information on the parameters, see http://www.rabbitmq.com/amqp-0-9-1-quickref.html#basic.deliver
    *
    * @param string $message to be published, should aready be escaped/encoded
+   * @param string $exchange to publish the message to, can be empty
+   * @param string $routing_key to publish the message to
    * @param string $mimetype of message content content
    * @param int $delivery_mode for message: 1 non-persist message, 2 persist message
    * @param bool $mandatory set the mandatory bit
    * @param bool $immediate set the immediate bit
    * @param bool $recursion flag called when trying to recreate a new session
    * @return bool Success/Failure
+   * @throws Exception
    */
-  function publish( $message, $exchange, $routing_key, $mimetype = "text/plain", $delivery_mode = 1, 
-                    $mandatory = false, $immediate = false, $recursion = false )
+  function publish( $message, 
+                    $exchange, 
+                    $routing_key, 
+                    $mimetype = "text/plain", 
+                    $delivery_mode = 1, 
+                    $mandatory = false, 
+                    $immediate = false, 
+                    $recursion = false )
   {
     // Make sure they passed in a message
-    if ( !strlen( $message ) )
+    if ( ! strlen( $message ) )
     {
       throw new Exception( "You must pass in a message to deliver." );
     }
   
     // Make sure they passed in a routing_key and exchange
-    if ( !strlen( $exchange ) && !strlen( $routing_key ) )
+    if ( ! strlen( $exchange ) && ! strlen( $routing_key ) )
     {
       throw new Exception( "You must pass either an exchange or routing key to publish to." );
     }
@@ -235,9 +269,10 @@ class VorpalBunny
     // Evaluate the return response to make sure we got a good result before continuing
     if ( $header['http_code'] != 200 )
     {
-      throw new Exception( "Received a " . $header['http_code'] . " response: " . $body);
+      throw new Exception( "Received a " . $header['http_code'] . " response: " . $response);
     }
-
+    
+    // Decode our JSON response so we can check for success/failure
     $response = json_decode( $response );
     
     // See if we got a RPC error
@@ -249,7 +284,9 @@ class VorpalBunny
         if ( $recursion !== true )
         {
           return $this->publish( $message, $exchange, $routing_key, $mimetype, $delivery_mode, $mandatory, $immediate, true );
-        } else {
+        } 
+        else 
+        {
           return false;
         }
       }
@@ -260,7 +297,7 @@ class VorpalBunny
     
     // Make sure we have a body
     // Expected response example: {"version":"1.1","id":2,"result":[]}
-    if ( !isset($response->result) )
+    if ( ! isset($response->result) )
     {
       throw Exception( "Missing Required 'response' attribute in JSON response" );
     }
