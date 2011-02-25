@@ -25,7 +25,41 @@ Example Usage
 -------------
 
      $vb = new VorpalBunny( 'localhost' );
-     $vb->publish( "Hello World!", "", "test" );
+     $vb->publish( "", "test", "Hello World!" );
+
+Class Documentation
+-------------------
+
+VorpalBunny
+
+Constructor __construct (line 43)
+Initialize the VorpalBunny Class
+
+     VorpalBunny __construct (string $host, [int $port = 55672], [string $user = 'guest'], [string $pass = 'guest'], [string $vhost = '/'], [int $timeout = 30])
+     - *string* _$host_: RabbitMQ server to use
+     - *int* $port: RabbitMQ Server HTTP port to use
+     - *string* $user: Username to pass to RabbitMQ when starting a session
+     - *string* $pass: Password to send to RabbitMQ when starting a session
+     - *string* $vhost: RabbitMQ VHost to use
+     - *int* $timeout: Timeout to set on the RabbitMQ JSONRPC Channel side
+
+
+publish (line 224)
+Send a message to RabbitMQ using Basic.Deliver over RPC
+
+For more information on the parameters, see http://www.rabbitmq.com/amqp-0-9-1-quickref.html#basic.deliver
+
+return: Success/Failure
+throws: Exception
+bool publish (string $message, string $exchange, string $routing_key, [string $mimetype = "text/plain"], [int $delivery_mode = 1], [bool $mandatory = false], [bool $immediate = false], [bool $recursion = false])
+* string $message: to be published, should aready be escaped/encoded
+* string $exchange: to publish the message to, can be empty
+* string $routing_key: to publish the message to
+* string $mimetype: of message content content
+* int $delivery_mode: for message: 1 non-persist message, 2 persist message
+* bool $mandatory: set the mandatory bit
+* bool $immediate: set the immediate bit
+* bool $recursion: flag called when trying to recreate a new session
 
 License
 -------
