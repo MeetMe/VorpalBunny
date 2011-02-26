@@ -43,21 +43,11 @@ class VorpalBunny
   function __construct( $host, $port = 55672, $user = 'guest', $pass = 'guest', $vhost = '/', $timeout = 30 )
   {
     // Do we have APC support for caching session token?
-    if ( is_callable( 'apc_fetch' ) )
-    {
-      // We can cache data in APC so we don't need a new session each time
-      $this->canCacheSession = True;
+    if ( ! is_callable( 'apc_fetch' ) )
+        throw new Exception( "APC is not available, please install APC" );
 
-      // Construct the APC cache key we'll use in init and elsewhere
-      $this->cacheKey = self::$apcPrefix . $username . ':' . $password . '@' . $host . ':' . $port . $vhost;
-
-      // Check to see if we already have a session key
-      $this->sessionToken = apc_fetch( $this->cacheKey );
-    }
-    else
-    {
-      $this->canCacheSession = false;
-    }
+    // Construct the APC cache key we'll use in init and elsewhere
+    $this->cacheKey = self::$apcPrefix . $username . ':' . $password . '@' . $host . ':' . $port . $vhost;
 
     // Create our Base URL
     $this->baseURL = 'http://' . $host . ':' . $port . '/rpc/';
@@ -78,9 +68,9 @@ class VorpalBunny
     curl_setopt( $this->curl, CURLOPT_FRESH_CONNECT, false );
     curl_setopt( $this->curl, CURLOPT_TIMEOUT, 1 );
     curl_setopt( $this->curl, CURLOPT_USERAGENT, 'VorpalBunny/0.1' );
-    curl_setopt( $this->curl, CURLOPT_HTTPHEADER, array( 'Content-type: application/json', 
-                                                         'Connection: keep-alive',
-                                                         'Keep-Alive: 300' ) );
+    curl_setopt( $this->curl, CURLOPT_HTTPHEADER, array( 'Content-type: application/json',
+                                                         'x-json-rpc-timeout: 1',
+                                                         'Connection: keep-alive' ) );
   }
 
   /**
@@ -118,18 +108,9 @@ class VorpalBunny
    */
   private function getNextId( )
   {
-    // Get the ID out of APC if possible
-    if ( $this->canCacheSession === true )
-    {
-      // Assume this is set to 0 since we called for the session
-      $this->id = apc_inc( self::$apcIDKey, 1 );
-    }
-    else
-    {
-      // Increment our internal varaible
-      $this->id++;
-    }
-
+    // Assume this is set to 0 since we called for the session
+    $this->id = apc_fetch( self::$apcIDKey ) + 1;
+    apc_store( self::$apcIDKey, $this->id );
     return $this->id;
   }
 
@@ -185,16 +166,15 @@ class VorpalBunny
     }
 
     // Assign our session token
-    $this->sessionToken = $response->result->service;
+    $token = $response->result->service;
 
-    if ( $this->canCacheSession === true )
-    {
-      // Store the value of the token
-      apc_store( $this->cacheKey, $this->sessionToken );
-
-      // Set our ID counter to 0
-      apc_store( self::$apcIDKey, 0 );
-    }
+    // Store the value of the token, being agressive to timeout before Rabbit does
+    apc_store( $this->cacheKey, $token, intval( $this->timeout / 2 ) );
+    
+    // Set our ID counter to 0
+    apc_store( self::$apcIDKey, 0 );
+    
+    return $token;
   }
 
   /**
@@ -204,14 +184,17 @@ class VorpalBunny
    */
   private function getSessionURL( )
   {
+    
+    $token = trim( apc_fetch( $this->cacheKey ) );
+  
     // If we don't have a valid session token, go get one
-    if ( ! $this->sessionToken )
+    if ( ! $token )
     {
-      $this->getSession( );
+      $token = $this->getSession( );
     }
 
     // Return our JSON-RPC-Channel Session URL
-    return $this->baseURL . $this->sessionToken;
+    return $this->baseURL . $token;
   }
 
   /**
@@ -244,6 +227,12 @@ class VorpalBunny
     {
       throw new Exception( "You must pass in a message to deliver." );
     }
+    
+    // See if we can json decode the message, if so throw an exception
+    if ( json_decode( $message ) )
+    {
+      throw new Exception( "You can not send JSON encoded data as the message body." );
+    }
 
     // Make sure they passed in a routing_key and exchange
     if ( ! strlen( $exchange ) && ! strlen( $routing_key ) )
@@ -267,15 +256,16 @@ class VorpalBunny
                           null,            // App ID 
                           null );          // Cluster ID
 
-    // Create our parameter array
     // Second parameter array is: ticket, exchange, routing_key, mandatory, immediate
-    $parameters = array ( "basic.publish", array( 0, $exchange, $routing_key, $mandatory, $immediate ), $message, $properties );
+    $parameters = array ( "basic.publish", array(0, $exchange, $routing_key, $mandatory, $immediate ), $message, $properties );
 
     // Set our URL
     curl_setopt( $this->curl, CURLOPT_URL, $this->getSessionURL( ) );
 
     // Set our post data
-    curl_setopt( $this->curl, CURLOPT_POSTFIELDS, $this->getPayload( 'cast', $parameters ) );
+    $payload = $this->getPayload( 'cast', $parameters );
+
+    curl_setopt( $this->curl, CURLOPT_POSTFIELDS, $payload );
 
     // Make the Call and get the response
     $response = curl_exec( $this->curl );
@@ -296,10 +286,11 @@ class VorpalBunny
     if ( isset($response->error ) )
     {
       // Try and recurse once to fix the issue of a stale session
-      if ( $response->error->code == 404 )
+      if ( in_array( $response->error->code, array( 404, 500 ) ) )
       {
         if ( $recursion !== true )
         {
+          apc_delete( $this->cacheKey );
           return $this->publish( $message, $exchange, $routing_key, $mimetype, $delivery_mode, $mandatory, $immediate, true );
         }
         else
@@ -307,6 +298,12 @@ class VorpalBunny
           return false;
         }
       }
+      
+      // Remove the cache key
+      apc_delete( $this->cacheKey);
+           
+      // Set our ID counter to 0
+      apc_store( self::$apcIDKey, 0 );
 
       // Was an unexpected error
       throw new Exception( "Received a RPC Error " . $response->error->code . " response: " . $response->error->message );

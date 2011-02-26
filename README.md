@@ -32,7 +32,7 @@ Requirements
 
 * PHP 5
 * w/ CURL
-* APC use is optional but recommended
+* APC
 
 Example Usage
 -------------
