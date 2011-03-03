@@ -45,10 +45,10 @@ Class Documentation
 
 VorpalBunny
 
-  Constructor __construct (line 43)
+  Constructor __construct (line 44)
   Initialize the VorpalBunny Class
 
-     __construct (string $host, [int $port = 55672], [string $user = 'guest'], [string $pass = 'guest'], [string $vhost = '/'], [int $timeout = 30])
+     __construct (string $host, [int $port = 55672], [string $user = 'guest'], [string $pass = 'guest'], [string $vhost = '/'], [int $timeout = 300])
      
      * string $host:    RabbitMQ server to use
      * int    $port:    RabbitMQ Server HTTP port to use
@@ -58,7 +58,7 @@ VorpalBunny
      * int    $timeout: Timeout to set on the RabbitMQ JSONRPC Channel side
 
 
-  publish (line 224)
+  publish (line 242)
   Send a message to RabbitMQ using Basic.Deliver over JSONRPC
 
   For more information on the parameters, see http://www.rabbitmq.com/amqp-0-9-1-quickref.html#basic.deliver
@@ -66,7 +66,7 @@ VorpalBunny
      return: Success/Failure
      throws: Exception  
      
-     bool publish (string $exchange, string $routing_key, string $message, [string $mimetype = "text/plain"], [int $delivery_mode = 1], [bool $mandatory = false], [bool $immediate = false], [bool $recursion = false])
+     bool publish (string $exchange, string $routing_key, string $message, [string $mimetype = "text/plain"], [int $delivery_mode = 1], [bool $mandatory = false], [bool $immediate = false], [int $recursive = 0])
      
      * string $exchange:      to publish the message to, can be empty
      * string $routing_key:   to publish the message to
@@ -75,7 +75,7 @@ VorpalBunny
      * int    $delivery_mode: for message: 1 non-persist message, 2 persist message
      * bool   $mandatory:     set the mandatory bit
      * bool   $immediate:     set the immediate bit
-     * bool   $recursion:     flag called when trying to recreate a new session
+     * bool   $recursive:     counter for the number of times the publish function has called itself
 
 License
 -------
