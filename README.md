@@ -58,13 +58,13 @@ VorpalBunny
      * int    $timeout: Timeout to set on the RabbitMQ JSONRPC Channel side
 
 
-  publish (line 242)
+  publish (line 254)
   Send a message to RabbitMQ using Basic.Deliver over JSONRPC
 
   For more information on the parameters, see http://www.rabbitmq.com/amqp-0-9-1-quickref.html#basic.deliver
 
      return: Success/Failure
-     throws: Exception  
+     throws: Exception on failure to make HTTP connection or in response to error in RabbitMQ JSONRPC Channel Plugin
      
      bool publish (string $exchange, string $routing_key, string $message, [string $mimetype = "text/plain"], [int $delivery_mode = 1], [bool $mandatory = false], [bool $immediate = false], [int $recursive = 0])
      
