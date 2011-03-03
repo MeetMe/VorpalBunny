@@ -85,7 +85,7 @@ class VorpalBunny
     curl_setopt( $this->curl, CURLOPT_RETURNTRANSFER, true );
     curl_setopt( $this->curl, CURLOPT_FORBID_REUSE, false );
     curl_setopt( $this->curl, CURLOPT_FRESH_CONNECT, false );
-    curl_setopt( $this->curl, CURLOPT_TIMEOUT, 3 );
+    curl_setopt( $this->curl, CURLOPT_TIMEOUT, self::$jsonRPCTimeout );
     curl_setopt( $this->curl, CURLOPT_USERAGENT, 'VorpalBunny/' . self::$version );
     curl_setopt( $this->curl, CURLOPT_HTTPHEADER, array( 'Content-type: application/json',
                                                          'x-json-rpc-timeout: ' . self::$jsonRPCTimeout,
@@ -206,8 +206,8 @@ class VorpalBunny
     // Assign our session token
     $token = $response->result->service;
 
-    // Store the value of the token, being agressive to timeout before Rabbit does
-    apc_store( $this->cacheKey, $token, intval( $this->timeout / 2 ) );
+    // Store the value of the token, timing out before Rabbit does as to reduce number of requests when timed out
+    apc_store( $this->cacheKey, $token, intval( $this->timeout - ( $this->timeout / 8 ) ) );
 
     // Set our ID counter to 0
     apc_store( self::$apcIDKey, 0 );
