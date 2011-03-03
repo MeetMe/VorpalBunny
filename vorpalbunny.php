@@ -26,7 +26,8 @@ class VorpalBunny
   protected static $apcIDKey = 'VorpalBunny:id';
   protected static $jsonRPCVersion = 1.1;
   protected static $validMethods = array( 'call', 'cast', 'open', 'poll' );
-
+  protected static $maxRetries = 3;
+  
   private $id = 0;
   private $sessionToken = null;
 
@@ -40,7 +41,7 @@ class VorpalBunny
    * @param string $vhost RabbitMQ VHost to use
    * @param int $timeout Timeout to set on the RabbitMQ JSONRPC Channel side
    */
-  function __construct( $host, $port = 55672, $user = 'guest', $pass = 'guest', $vhost = '/', $timeout = 30 )
+  function __construct( $host, $port = 55672, $user = 'guest', $pass = 'guest', $vhost = '/', $timeout = 300 )
   {
     // Do we have APC support for caching session token?
     if ( ! is_callable( 'apc_fetch' ) )
@@ -57,7 +58,17 @@ class VorpalBunny
     $this->pass = $pass;
     $this->vhost = $vhost;
     $this->timeout = $timeout;
+  
+    $this->curl_init( );
+  
+  }
 
+
+  private function curl_init( )
+  {
+    // Delete the previous CURL instance
+    unset( $this->curl );
+    
     // Create our CURL instance
     $this->curl = curl_init( );
 
@@ -66,11 +77,11 @@ class VorpalBunny
     curl_setopt( $this->curl, CURLOPT_RETURNTRANSFER, true );
     curl_setopt( $this->curl, CURLOPT_FORBID_REUSE, false );
     curl_setopt( $this->curl, CURLOPT_FRESH_CONNECT, false );
-    curl_setopt( $this->curl, CURLOPT_TIMEOUT, 1 );
+    curl_setopt( $this->curl, CURLOPT_TIMEOUT, 3 );
     curl_setopt( $this->curl, CURLOPT_USERAGENT, 'VorpalBunny/0.1' );
     curl_setopt( $this->curl, CURLOPT_HTTPHEADER, array( 'Content-type: application/json',
-                                                         'x-json-rpc-timeout: 1',
-                                                         'Connection: keep-alive' ) );
+                                                         'x-json-rpc-timeout: 3',
+                                                        'Connection: keep-alive' ) );
   }
 
   /**
@@ -117,19 +128,25 @@ class VorpalBunny
   /**
    * Retrieves a Session token from the RabbitMQ JSON-RPC Channel Plugin
    *
+   * @param int recursive request retry counter
    * @return void
    * @throws Exception
    */
-  private function getSession( )
+  private function getSession( $recursive = 0 )
   {
+    // Reset the session request counter
+    apc_store( self::$apcIDKey, 0 );
+  
     // Defind our parameters array
     $parameters = array( $this->user, $this->pass, $this->timeout, $this->vhost );
 
     // Set our post data
-    curl_setopt( $this->curl, CURLOPT_POSTFIELDS, $this->getPayload( 'open', $parameters ) );
+    $payload = $this->getPayload( 'open', $parameters );
+    curl_setopt( $this->curl, CURLOPT_POSTFIELDS, $payload );
 
     // Set our URL
-    curl_setopt( $this->curl, CURLOPT_URL, $this->baseURL . "rabbitmq" );
+    $url = $this->baseURL . "rabbitmq";
+    curl_setopt( $this->curl, CURLOPT_URL, $url );
 
     // Make the Call and get the response
     $response = curl_exec( $this->curl );
@@ -146,7 +163,7 @@ class VorpalBunny
     // Evaluate the return response to make sure we got a good result before continuing
     if ( $header['http_code'] != 200 )
     {
-      throw new Exception( "Received a " . $header['http_code'] . " response: " . $body );
+      throw new Exception( "Received a HTTP Error #" . $header['http_code'] . " while getting session. Response: " . $body . " URL: " . $url . " Payload: " . $payload );
     }
 
     // Decode the body into the object representation
@@ -155,14 +172,23 @@ class VorpalBunny
     // See if we got a RPC error
     if ( isset($response->error ) )
     {
-      throw new Exception( "Received a RPC Error " . $response->error->code . " response: " . $response->error->message );
+      if ( $recursive < self::$maxRetries )
+      {
+        // Rebuild our Curl Object
+        $this->curl_init( );
+        
+        // Make a second attept
+        return $this->getSession( $recursive + 1 );
+      } else {
+        throw new Exception( "Received " . $recursive . " RPC Errors, while obtaining session. Last URL: " . $url . " Payload: " . $payload . "Response: " . json_encode( $response ) );
+      }
     }
 
     // Make sure we have a body
     // Expected response example: {"version":"1.1","id":1,"result":{"service":"F01F0D5ADDF995CAA9B1DCD38AB8E239"}}
     if ( ! isset( $response->result ) )
     {
-      throw Exception( "Missing Required 'response' attribute in JSON response" );
+      throw Exception( "Missing Required 'response' attribute in JSON response:" . json_encode( $response ) );
     }
 
     // Assign our session token
@@ -209,7 +235,7 @@ class VorpalBunny
    * @param int $delivery_mode for message: 1 non-persist message, 2 persist message
    * @param bool $mandatory set the mandatory bit
    * @param bool $immediate set the immediate bit
-   * @param bool $recursion flag called when trying to recreate a new session
+   * @param int $recursive retry counter when trying to recreate a new session
    * @return bool Success/Failure
    * @throws Exception
    */
@@ -220,7 +246,7 @@ class VorpalBunny
                     $delivery_mode = 1,
                     $mandatory = false,
                     $immediate = false,
-                    $recursion = false )
+                    $recursive = 0 )
   {
     // Make sure they passed in a message
     if ( ! strlen( $message ) )
@@ -276,7 +302,7 @@ class VorpalBunny
     // Evaluate the return response to make sure we got a good result before continuing
     if ( $header['http_code'] != 200 )
     {
-      throw new Exception( "Received a " . $header['http_code'] . " response: " . $response);
+      throw new Exception( "Received a HTTP Error #" . $header['http_code'] . " while sending basic.publish. Response: " . $response);
     }
 
     // Decode our JSON response so we can check for success/failure
@@ -288,14 +314,16 @@ class VorpalBunny
       // Try and recurse once to fix the issue of a stale session
       if ( in_array( $response->error->code, array( 404, 500 ) ) )
       {
-        if ( $recursion !== true )
+        if ( $recursive < self::$maxRetries )
         {
+          // Rebuild our Curl Object
+          $this->curl_init( );
+        
+          // Remove the existing session key        
           apc_delete( $this->cacheKey );
-          return $this->publish( $message, $exchange, $routing_key, $mimetype, $delivery_mode, $mandatory, $immediate, true );
-        }
-        else
-        {
-          return false;
+          
+          // Pubish
+          return $this->publish( $message, $exchange, $routing_key, $mimetype, $delivery_mode, $mandatory, $immediate, $recursive );
         }
       }
       
@@ -306,14 +334,14 @@ class VorpalBunny
       apc_store( self::$apcIDKey, 0 );
 
       // Was an unexpected error
-      throw new Exception( "Received a RPC Error " . $response->error->code . " response: " . $response->error->message );
+      throw new Exception( "Received " . $recursive . " RPC Errors while sending basic.publish. Last URL: " . $url . " Payload: " . $payload . "Response: " . json_encode( $response ) );
     }
 
     // Make sure we have a body
     // Expected response example: {"version":"1.1","id":2,"result":[]}
     if ( ! isset( $response->result ) )
     {
-      throw Exception( "Missing Required 'response' attribute in JSON response" );
+      throw Exception( "Missing Required 'response' attribute in JSON response: " . json_encode( $response ) );
     }
 
     return True;
