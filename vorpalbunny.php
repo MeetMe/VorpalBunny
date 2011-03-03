@@ -13,7 +13,7 @@
  * @license http://opensource.org/licenses/bsd-license.php BSD License
  * @link http://github.com/myYearbook/VorpalBunny
  * @since 2011-02-24
- * @version 0.1
+ * @version 0.2
  *
  * Usage:
  *
@@ -25,9 +25,11 @@ class VorpalBunny
   protected static $apcPrefix = 'VorpalBunny:';
   protected static $apcIDKey = 'VorpalBunny:id';
   protected static $jsonRPCVersion = 1.1;
+  protected static $jsonRPCTimeout = 3;
   protected static $validMethods = array( 'call', 'cast', 'open', 'poll' );
   protected static $maxRetries = 3;
-  
+  protected static $version = 0.2;
+
   private $id = 0;
   private $sessionToken = null;
 
@@ -40,12 +42,15 @@ class VorpalBunny
    * @param string $pass Password to send to RabbitMQ when starting a session
    * @param string $vhost RabbitMQ VHost to use
    * @param int $timeout Timeout to set on the RabbitMQ JSONRPC Channel side
+   * @throws Exception when missing APC
    */
   function __construct( $host, $port = 55672, $user = 'guest', $pass = 'guest', $vhost = '/', $timeout = 300 )
   {
     // Do we have APC support for caching session token?
     if ( ! is_callable( 'apc_fetch' ) )
-        throw new Exception( "APC is not available, please install APC" );
+    {
+      throw new Exception( "APC is not available, please install APC" );
+    }
 
     // Construct the APC cache key we'll use in init and elsewhere
     $this->cacheKey = self::$apcPrefix . $username . ':' . $password . '@' . $host . ':' . $port . $vhost;
@@ -58,17 +63,20 @@ class VorpalBunny
     $this->pass = $pass;
     $this->vhost = $vhost;
     $this->timeout = $timeout;
-  
+
     $this->curl_init( );
-  
   }
 
-
+  /**
+   * Initialize a new curl connection, do this on each new session
+   *
+   * @return void
+   */
   private function curl_init( )
   {
     // Delete the previous CURL instance
     unset( $this->curl );
-    
+
     // Create our CURL instance
     $this->curl = curl_init( );
 
@@ -78,10 +86,10 @@ class VorpalBunny
     curl_setopt( $this->curl, CURLOPT_FORBID_REUSE, false );
     curl_setopt( $this->curl, CURLOPT_FRESH_CONNECT, false );
     curl_setopt( $this->curl, CURLOPT_TIMEOUT, 3 );
-    curl_setopt( $this->curl, CURLOPT_USERAGENT, 'VorpalBunny/0.1' );
+    curl_setopt( $this->curl, CURLOPT_USERAGENT, 'VorpalBunny/' . self::$version );
     curl_setopt( $this->curl, CURLOPT_HTTPHEADER, array( 'Content-type: application/json',
-                                                         'x-json-rpc-timeout: 3',
-                                                        'Connection: keep-alive' ) );
+                                                         'x-json-rpc-timeout: ' . self::$jsonRPCTimeout,
+                                                         'Connection: keep-alive' ) );
   }
 
   /**
@@ -128,7 +136,7 @@ class VorpalBunny
   /**
    * Retrieves a Session token from the RabbitMQ JSON-RPC Channel Plugin
    *
-   * @param int recursive request retry counter
+   * @param int $recursive request retry counter
    * @return void
    * @throws Exception
    */
@@ -136,7 +144,7 @@ class VorpalBunny
   {
     // Reset the session request counter
     apc_store( self::$apcIDKey, 0 );
-  
+
     // Defind our parameters array
     $parameters = array( $this->user, $this->pass, $this->timeout, $this->vhost );
 
@@ -163,7 +171,8 @@ class VorpalBunny
     // Evaluate the return response to make sure we got a good result before continuing
     if ( $header['http_code'] != 200 )
     {
-      throw new Exception( "Received a HTTP Error #" . $header['http_code'] . " while getting session. Response: " . $body . " URL: " . $url . " Payload: " . $payload );
+      throw new Exception( "Received a HTTP Error #" . $header['http_code'] . " while getting session. URL: " . $url .
+                           " Payload:" . $payload. " Response: " . $response );
     }
 
     // Decode the body into the object representation
@@ -176,11 +185,14 @@ class VorpalBunny
       {
         // Rebuild our Curl Object
         $this->curl_init( );
-        
+
         // Make a second attept
         return $this->getSession( $recursive + 1 );
-      } else {
-        throw new Exception( "Received " . $recursive . " RPC Errors, while obtaining session. Last URL: " . $url . " Payload: " . $payload . "Response: " . json_encode( $response ) );
+      }
+      else
+      {
+        throw new Exception( "Received " . $recursive . " RPC Errors, while obtaining session. Last  URL: " . $url  .
+                             " Payload:" . $payload. "  Response: " . $response );
       }
     }
 
@@ -196,10 +208,10 @@ class VorpalBunny
 
     // Store the value of the token, being agressive to timeout before Rabbit does
     apc_store( $this->cacheKey, $token, intval( $this->timeout / 2 ) );
-    
+
     // Set our ID counter to 0
     apc_store( self::$apcIDKey, 0 );
-    
+
     return $token;
   }
 
@@ -210,9 +222,9 @@ class VorpalBunny
    */
   private function getSessionURL( )
   {
-    
+
     $token = trim( apc_fetch( $this->cacheKey ) );
-  
+
     // If we don't have a valid session token, go get one
     if ( ! $token )
     {
@@ -229,8 +241,8 @@ class VorpalBunny
    * For more information on the parameters, see http://www.rabbitmq.com/amqp-0-9-1-quickref.html#basic.deliver
    *
    * @param string $exchange to publish the message to, can be empty
-   * @param string $message to be published, should already be escaped/encoded
    * @param string $routing_key to publish the message to
+   * @param string $message to be published, should already be escaped/encoded
    * @param string $mimetype of message content content
    * @param int $delivery_mode for message: 1 non-persist message, 2 persist message
    * @param bool $mandatory set the mandatory bit
@@ -253,7 +265,7 @@ class VorpalBunny
     {
       throw new Exception( "You must pass in a message to deliver." );
     }
-    
+
     // See if we can json decode the message, if so throw an exception
     if ( json_decode( $message ) )
     {
@@ -279,7 +291,7 @@ class VorpalBunny
                           null,            // Timestamp
                           null,            // Type
                           null,            // User ID
-                          null,            // App ID 
+                          null,            // App ID
                           null );          // Cluster ID
 
     // Second parameter array is: ticket, exchange, routing_key, mandatory, immediate
@@ -318,23 +330,21 @@ class VorpalBunny
         {
           // Rebuild our Curl Object
           $this->curl_init( );
-        
-          // Remove the existing session key        
+
+          // Remove the existing session key
           apc_delete( $this->cacheKey );
-          
+
           // Pubish
-          return $this->publish( $message, $exchange, $routing_key, $mimetype, $delivery_mode, $mandatory, $immediate, $recursive );
+          return $this->publish( $exchange, $routing_key, $message, $mimetype, $delivery_mode, $mandatory, $immediate, $recursive + 1 );
         }
       }
-      
+
       // Remove the cache key
-      apc_delete( $this->cacheKey);
-           
-      // Set our ID counter to 0
-      apc_store( self::$apcIDKey, 0 );
+      apc_delete( $this->cacheKey );
 
       // Was an unexpected error
-      throw new Exception( "Received " . $recursive . " RPC Errors while sending basic.publish. Last URL: " . $url . " Payload: " . $payload . "Response: " . json_encode( $response ) );
+      throw new Exception( "Received " . $recursive . " RPC Errors while sending basic.publish. Last URL: " . $url .
+                           " Payload: " . $payload . "Response: " . json_encode( $response ) );
     }
 
     // Make sure we have a body
