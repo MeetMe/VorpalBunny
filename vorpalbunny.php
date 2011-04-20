@@ -53,7 +53,7 @@ class VorpalBunny
     }
 
     // Construct the APC cache key we'll use in init and elsewhere
-    $this->cacheKey = self::$apcPrefix . $username . ':' . $password . '@' . $host . ':' . $port . $vhost;
+    $this->cacheKey = self::$apcPrefix . $user . ':' . $pass . '@' . $host . ':' . $port . $vhost;
 
     // Create our Base URL
     $this->baseURL = 'http://' . $host . ':' . $port . '/rpc/';
