@@ -266,12 +266,6 @@ class VorpalBunny
       throw new Exception( "You must pass in a message to deliver." );
     }
 
-    // See if we can json decode the message, if so throw an exception
-    if ( json_decode( $message ) )
-    {
-      throw new Exception( "You can not send JSON encoded data as the message body." );
-    }
-
     // Make sure they passed in a routing_key and exchange
     if ( ! strlen( $exchange ) && ! strlen( $routing_key ) )
     {
