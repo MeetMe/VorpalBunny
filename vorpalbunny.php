@@ -13,7 +13,7 @@
  * @license http://opensource.org/licenses/bsd-license.php BSD License
  * @link http://github.com/myYearbook/VorpalBunny
  * @since 2011-02-24
- * @version 0.2
+ * @version 0.4
  *
  * Usage:
  *
@@ -28,7 +28,7 @@ class VorpalBunny
   protected static $jsonRPCTimeout = 3;
   protected static $validMethods = array( 'call', 'cast', 'open', 'poll' );
   protected static $maxRetries = 3;
-  protected static $version = 0.2;
+  protected static $version = 0.4;
 
   private $id = 0;
   private $sessionToken = null;
@@ -243,8 +243,7 @@ class VorpalBunny
    * @param string $exchange to publish the message to, can be empty
    * @param string $routing_key to publish the message to
    * @param string $message to be published, should already be escaped/encoded
-   * @param string $mimetype of message content content
-   * @param int $delivery_mode for message: 1 non-persist message, 2 persist message
+   * @param array $basic_properties for the message
    * @param bool $mandatory set the mandatory bit
    * @param bool $immediate set the immediate bit
    * @param int $recursive retry counter when trying to recreate a new session
@@ -254,8 +253,7 @@ class VorpalBunny
   function publish( $exchange,
                     $routing_key,
                     $message,
-                    $mimetype = "text/plain",
-                    $delivery_mode = 1,
+                    $basic_properties = array(),
                     $mandatory = false,
                     $immediate = false,
                     $recursive = 0 )
@@ -266,34 +264,36 @@ class VorpalBunny
       throw new Exception( "You must pass in a message to deliver." );
     }
 
-    // See if we can json decode the message, if so throw an exception
-    if ( json_decode( $message ) )
-    {
-      throw new Exception( "You can not send JSON encoded data as the message body." );
-    }
-
     // Make sure they passed in a routing_key and exchange
     if ( ! strlen( $exchange ) && ! strlen( $routing_key ) )
     {
       throw new Exception( "You must pass either an exchange or routing key to publish to." );
     }
-
+    
     // Set our properties array
-    $properties = array ( $mimetype,       // Content-type
-                          null,            // Content-encoding
-                          null,            // Headers
-                          $delivery_mode,  // Delivery Mode
-                          null,            // Priority
-                          null,            // Correlation ID
-                          null,            // Reply To
-                          null,            // Expiration
-                          null,            // Message ID
-                          null,            // Timestamp
-                          null,            // Type
-                          null,            // User ID
-                          null,            // App ID
-                          null );          // Cluster ID
-
+    $default_properties = array ('content_type' => null,      
+                                 'encoding' => null,          
+                                 'headers' => null,       
+                                 'priority' => null,      
+                                 'delivery_mode' => null, 
+                                 'priority' => null,
+                                 'correlation_id' => null,
+                                 'reply_to' => null,
+                                 'expiration' => null,
+                                 'message_id' => null,
+                                 'timestamp' => time(),
+                                 'type' => null,
+                                 'user_id' => null,
+                                 'app_id' => null,
+                                 'reserved' => null );
+    
+    // Build our message properties, adding a default for things not specified
+    $properties = array();
+    foreach ( $default_properties as $key => $value )
+    {
+        $properties[] = ( isset( $basic_properties[$key] ) ) ? $basic_properties[$key] : $value;
+    }
+                                 
     // Second parameter array is: ticket, exchange, routing_key, mandatory, immediate
     $parameters = array ( "basic.publish", array(0, $exchange, $routing_key, $mandatory, $immediate ), $message, $properties );
 
@@ -335,7 +335,7 @@ class VorpalBunny
           apc_delete( $this->cacheKey );
 
           // Pubish
-          return $this->publish( $exchange, $routing_key, $message, $mimetype, $delivery_mode, $mandatory, $immediate, $recursive + 1 );
+          return $this->publish( $exchange, $routing_key, $message, $properties, $mandatory, $immediate, $recursive + 1 );
         }
       }
 
