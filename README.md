@@ -58,7 +58,7 @@ VorpalBunny
      * int    $timeout: Timeout to set on the RabbitMQ JSONRPC Channel side
 
 
-  publish (line 254)
+  publish (line 253)
   Send a message to RabbitMQ using Basic.Deliver over JSONRPC
 
   For more information on the parameters, see http://www.rabbitmq.com/amqp-0-9-1-quickref.html#basic.deliver
@@ -66,16 +66,15 @@ VorpalBunny
      return: Success/Failure
      throws: Exception on failure to make HTTP connection or in response to error in RabbitMQ JSONRPC Channel Plugin
      
-     bool publish (string $exchange, string $routing_key, string $message, [string $mimetype = "text/plain"], [int $delivery_mode = 1], [bool $mandatory = false], [bool $immediate = false], [int $recursive = 0])
+     bool publish (string $exchange, string $routing_key, string $message, [array $basic_propertoes], [bool $mandatory = false], [bool $immediate = false], [int $recursive = 0])
      
-     * string $exchange:      to publish the message to, can be empty
-     * string $routing_key:   to publish the message to
-     * string $message:       to be published, should already be escaped/encoded
-     * string $mimetype:      of message content content
-     * int    $delivery_mode: for message: 1 non-persist message, 2 persist message
-     * bool   $mandatory:     set the mandatory bit
-     * bool   $immediate:     set the immediate bit
-     * bool   $recursive:     counter for the number of times the publish function has called itself
+     * string $exchange:        to publish the message to, can be empty
+     * string $routing_key:     to publish the message to
+     * string $message:         to be published, should already be escaped/encoded
+     * array  $basic_properties for the message
+     * bool   $mandatory:       set the mandatory bit
+     * bool   $immediate:       set the immediate bit
+     * bool   $recursive:       counter for the number of times the publish function has called itself
 
 License
 -------
