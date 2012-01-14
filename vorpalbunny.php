@@ -200,7 +200,7 @@ class VorpalBunny
     // Expected response example: {"version":"1.1","id":1,"result":{"service":"F01F0D5ADDF995CAA9B1DCD38AB8E239"}}
     if ( ! isset( $response->result ) )
     {
-      throw Exception( "Missing Required 'response' attribute in JSON response:" . json_encode( $response ) );
+      throw new Exception( "Missing Required 'response' attribute in JSON response:" . json_encode( $response ) );
     }
 
     // Assign our session token
@@ -351,7 +351,7 @@ class VorpalBunny
     // Expected response example: {"version":"1.1","id":2,"result":[]}
     if ( ! isset( $response->result ) )
     {
-      throw Exception( "Missing Required 'response' attribute in JSON response: " . json_encode( $response ) );
+      throw new Exception( "Missing Required 'response' attribute in JSON response: " . json_encode( $response ) );
     }
 
     return True;
