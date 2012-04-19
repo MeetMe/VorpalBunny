@@ -90,6 +90,8 @@ class VorpalBunny
     curl_setopt( $this->curl, CURLOPT_HTTPHEADER, array( 'Content-type: application/json',
                                                          'x-json-rpc-timeout: ' . self::$jsonRPCTimeout,
                                                          'Connection: keep-alive' ) );
+    curl_setopt( $this->curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC );
+    curl_setopt( $this->curl, CURLOPT_USERPWD, $this->user . ':' . $this->pass );
   }
 
   /**
