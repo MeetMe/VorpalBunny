@@ -22,6 +22,11 @@
  */
 class VorpalBunny
 {
+  /**
+   * Toggles whether or not VorpalBunny uses HTTP basic authentication when talking to RabbitMQ
+   */
+  const USE_HTTP_BASIC_AUTH = false;
+
   protected static $apcPrefix = 'VorpalBunny:';
   protected static $apcIDKey = 'VorpalBunny:id';
   protected static $jsonRPCVersion = 1.1;
@@ -90,6 +95,11 @@ class VorpalBunny
     curl_setopt( $this->curl, CURLOPT_HTTPHEADER, array( 'Content-type: application/json',
                                                          'x-json-rpc-timeout: ' . self::$jsonRPCTimeout,
                                                          'Connection: keep-alive' ) );
+    if ( self::USE_HTTP_BASIC_AUTH === true )
+    {
+      curl_setopt( $this->curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC );
+      curl_setopt( $this->curl, CURLOPT_USERPWD, $this->user . ':' . $this->pass );
+    }
   }
 
   /**
