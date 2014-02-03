@@ -44,7 +44,7 @@ class VorpalBunny
    * @param int $timeout Timeout to set on the RabbitMQ JSONRPC Channel side
    * @throws Exception when missing APC
    */
-  function __construct( $host, $port = 55672, $user = 'guest', $pass = 'guest', $vhost = '/', $timeout = 300 )
+  function __construct( $host, $port = 5672, $user = 'guest', $pass = 'guest', $vhost = '/', $timeout = 300 )
   {
     // Do we have APC support for caching session token?
     if ( ! is_callable( 'apc_fetch' ) )
